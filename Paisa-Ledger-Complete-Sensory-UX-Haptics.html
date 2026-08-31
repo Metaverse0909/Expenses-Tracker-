@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Paisa Ledger — Daily Expense Tracker</title>
+<title>Ledvix — Daily Expense Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -342,6 +342,9 @@
   }
   .period-btn.active{ background:var(--teal); color:#fff; }
 
+  /* Analysis starts directly below the global header. */
+  #analysisView > .period-row{ margin-top:0; }
+
   .month-bar-row{ margin-bottom:12px; }
   .month-bar-row:last-child{ margin-bottom:0; }
   .month-bar-top{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; }
@@ -360,7 +363,30 @@
   .legend-item{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--ink-soft); }
   .legend-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
 
-  body{ padding-bottom:92px; }
+  /* Independent tab scrolling: keep the document itself fixed and let each view own its scroll state. */
+  html, body{
+    height:100%;
+    overflow:hidden;
+  }
+  body{
+    padding-bottom:0;
+  }
+  .wrap{
+    height:100dvh;
+    min-height:0;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .tab-scroll{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overflow-x:hidden;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:100px;
+  }
   .bottom-tabs{
     position:fixed; left:0; right:0; bottom:0; z-index:40;
     display:flex; background:var(--paper-raised); border-top:1px solid var(--line);
@@ -641,6 +667,7 @@
     </div>
   </header>
 
+  <div class="tab-scroll" id="homeScroll">
   <div id="homeView">
   <div class="budget-banner" id="budgetBanner" style="display:none;"></div>
 
@@ -796,7 +823,6 @@
     </div>
     <div id="listCard"></div>
   </div>
-  </div>
 
   <div class="card iou-section-card" id="sharedIouCard">
     <h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
@@ -815,7 +841,10 @@
     </div>
     <div id="sharedIouList"></div>
   </div>
+  </div>
+  </div>
 
+  <div class="tab-scroll" id="analysisScroll">
   <div id="analysisView" style="display:none;">
   <div class="period-row" id="periodRow"></div>
 
@@ -871,6 +900,7 @@
   </div>
 
   <footer>Stored only on this device · no account, no server</footer>
+  </div>
 </div>
 
 <div class="bottom-tabs" id="bottomTabs">
@@ -898,7 +928,11 @@
       <div class="scheme-row" id="schemeRow"></div>
     </div>
     <div class="setting-row">
-      <div><div class="setting-label">Passcode</div><div class="setting-sub">Encrypts everything you save — required, can't be turned off</div></div>
+      <div><div class="setting-label">App Lock / Passcode</div><div class="setting-sub" id="passcodeStatusSub">Off — app opens directly</div></div>
+      <div class="toggle" id="appLockToggle" role="switch" aria-label="App Lock / Passcode" aria-checked="false" tabindex="0"></div>
+    </div>
+    <div class="setting-row" id="changePasscodeRow" style="display:none;">
+      <div><div class="setting-label">Passcode</div><div class="setting-sub">Change your 4-digit App Lock PIN</div></div>
       <button class="small-btn" id="changePasscodeBtn">Change</button>
     </div>
     <div class="setting-row">
@@ -1289,7 +1323,7 @@
 <div class="modal-overlay iou-qr-overlay" id="iouQrModal">
   <div class="modal-box iou-qr-box">
     <div class="modal-title">📲 Share IOU via QR</div>
-    <div class="modal-sub" id="iouQrSub">Scan this QR from another Paisa Ledger device.</div>
+    <div class="modal-sub" id="iouQrSub">Scan this QR from another Ledvix device.</div>
     <canvas id="iouQrCanvas" width="280" height="280"></canvas>
     <textarea id="iouQrPayload" class="iou-qr-payload" readonly></textarea>
     <div class="iou-action-row">
@@ -1302,7 +1336,7 @@
 <div class="modal-overlay" id="iouScannerModal">
   <div class="modal-box iou-scan-box">
     <div class="modal-title">📷 Scan / Import IOU</div>
-    <div class="modal-sub">Scan a Paisa Ledger IOU QR or paste its JSON payload.</div>
+    <div class="modal-sub">Scan a Ledvix IOU QR or paste its JSON payload.</div>
     <div class="iou-scan-status" id="iouScanStatus">Camera scanning is ready when supported by this browser.</div>
     <video id="iouScannerVideo" playsinline muted></video>
     <div class="iou-action-row">
@@ -1337,7 +1371,7 @@
 <div id="lockScreen">
   <button class="lock-close-btn" id="lockCloseBtn">&times;</button>
   <div class="lock-title" id="lockTitle">Enter passcode</div>
-  <div class="lock-sub" id="lockSub">Unlock Paisa Ledger</div>
+  <div class="lock-sub" id="lockSub">Unlock Ledvix</div>
   <div class="lock-dots" id="lockDots">
     <div class="lock-dot"></div><div class="lock-dot"></div><div class="lock-dot"></div><div class="lock-dot"></div>
   </div>
@@ -1370,6 +1404,7 @@ function escAttr(str){
 }
 
 const STORAGE_KEY = 'paisaLedgerStateV2';
+const APP_LOCK_KEY = 'paisaLedgerAppLockEnabled';
 
 // ---- AES-256-GCM via native Web Crypto (no CDN, no dependency) ----
 async function deriveKeyFromPasscode(passcode, saltB64){
@@ -1470,11 +1505,11 @@ async function registerBiometric(){
     const cred = await navigator.credentials.create({
       publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
-        rp: { name: 'Paisa Ledger' },
+        rp: { name: 'Ledvix' },
         user: {
           id: crypto.getRandomValues(new Uint8Array(16)),
           name: 'paisa-ledger-user',
-          displayName: 'Paisa Ledger',
+          displayName: 'Ledvix',
         },
         pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
         authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
@@ -1580,6 +1615,7 @@ let state = {
   theme: 'light',
   colorScheme: 'teal',
   passcode: null,
+  appLockEnabled: false,
   viewPeriod: 'month',
   recurring: [],
   savingsGoal: null,
@@ -1712,6 +1748,7 @@ function migrateState(parsed){
   if (state.autoDarkMode === undefined) state.autoDarkMode = false;
   if (state.autoLockTime === undefined) state.autoLockTime = 120000;
   if (state.biometricEnabled === undefined) state.biometricEnabled = false;
+  if (state.appLockEnabled === undefined) state.appLockEnabled = localStorage.getItem(APP_LOCK_KEY) === 'true';
   if (state.biometricCredentialId === undefined) state.biometricCredentialId = null;
   if (state.lastBackupDate === undefined) state.lastBackupDate = null;
   if (state.budgetAlertsEnabled === undefined) state.budgetAlertsEnabled = true;
@@ -1743,10 +1780,15 @@ function migrateState(parsed){
   selectedCategory = state.categories[0].name;
 }
 async function saveState(){
-  if (!sessionKey) return; // not booted/unlocked yet — nothing to encrypt with
   try{
-    const encrypted = await encryptData(state, sessionKey, sessionSalt);
-    localStorage.setItem(STORAGE_KEY, encrypted);
+    if (state.appLockEnabled){
+      if (!sessionKey) return; // locked/not unlocked yet
+      const encrypted = await encryptData(state, sessionKey, sessionSalt);
+      localStorage.setItem(STORAGE_KEY, encrypted);
+    } else {
+      // App Lock OFF: preserve the same storage key and save readable JSON.
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
   }catch(e){
     showToast('Storage is full — try removing a receipt photo or two, then retry', false);
   }
@@ -1980,16 +2022,73 @@ function setColorScheme(id){
   saveState();
   applyTheme();
 }
+function isAppLockEnabled(){
+  return localStorage.getItem(APP_LOCK_KEY) === 'true' && !!state.appLockEnabled && !!state.passcode;
+}
 function renderPasscodeSetting(){
-  // Passcode is now mandatory (required for encryption), so there's nothing to toggle here.
+  const enabled = !!state.appLockEnabled && !!state.passcode;
+  const toggle = document.getElementById('appLockToggle');
+  const status = document.getElementById('passcodeStatusSub');
+  const changeRow = document.getElementById('changePasscodeRow');
+  if (toggle){
+    toggle.classList.toggle('on', enabled);
+    toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+  }
+  if (status) status.textContent = enabled ? 'On — passcode required when app locks' : 'Off — app opens directly';
+  if (changeRow) changeRow.style.display = enabled ? 'flex' : 'none';
+}
+async function enableAppLock(){
+  if (isDecoyActive){
+    showToast('Can\'t change App Lock while inside the decoy vault', false);
+    renderPasscodeSetting();
+    return;
+  }
+  openLock('create-step1');
+}
+async function disableAppLock(){
+  if (isDecoyActive){
+    showToast('Can\'t change App Lock while inside the decoy vault', false);
+    renderPasscodeSetting();
+    return;
+  }
+  state.appLockEnabled = false;
+  state.passcode = null;
+  state.biometricEnabled = false;
+  state.biometricCredentialId = null;
+  sessionKey = null;
+  sessionSalt = null;
+  localStorage.removeItem(APP_LOCK_KEY);
+  localStorage.removeItem(DECOY_KEY);
+  await saveState();
+  renderPasscodeSetting();
+  renderDecoySetting();
+  resetIdleTimer();
+  showToast('App Lock turned off', false);
+}
+async function toggleAppLock(){
+  if (isAppLockEnabled()) await disableAppLock();
+  else await enableAppLock();
+}
+const appLockToggle = document.getElementById('appLockToggle');
+if (appLockToggle){
+  appLockToggle.addEventListener('click', toggleAppLock);
+  appLockToggle.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleAppLock(); }
+  });
 }
 
 function renderDecoySetting(){
   const hasDecoy = !!localStorage.getItem(DECOY_KEY);
-  document.getElementById('decoyStatusSub').textContent = hasDecoy ? 'Set — tap to change' : 'Not set';
+  const enabled = isAppLockEnabled();
+  document.getElementById('decoyStatusSub').textContent = !enabled ? 'Requires App Lock' : (hasDecoy ? 'Set — tap to change' : 'Not set');
   document.getElementById('setDecoyBtn').textContent = hasDecoy ? 'Change' : 'Set';
+  document.getElementById('setDecoyBtn').disabled = !enabled;
 }
 document.getElementById('setDecoyBtn').addEventListener('click', () => {
+  if (!isAppLockEnabled()){
+    showToast('Enable App Lock first', false);
+    return;
+  }
   if (isDecoyActive){
     showToast('Can\'t manage the decoy passcode while inside the decoy vault', false);
     return;
@@ -2024,8 +2123,8 @@ function openLock(mode){
   const titleEl = document.getElementById('lockTitle');
   const subEl = document.getElementById('lockSub');
   const closeBtn = document.getElementById('lockCloseBtn');
-  if (mode === 'unlock'){ titleEl.textContent = 'Enter passcode'; subEl.textContent = 'Unlock Paisa Ledger'; }
-  if (mode === 'boot-unlock'){ titleEl.textContent = 'Enter passcode'; subEl.textContent = 'Decrypt your Paisa Ledger data'; }
+  if (mode === 'unlock'){ titleEl.textContent = 'Enter passcode'; subEl.textContent = 'Unlock Ledvix'; }
+  if (mode === 'boot-unlock'){ titleEl.textContent = 'Enter passcode'; subEl.textContent = 'Decrypt your Ledvix data'; }
   if (mode === 'boot-create-1'){ titleEl.textContent = 'Set a passcode'; subEl.textContent = 'Required — this encrypts everything you save. Choose a 4-digit code.'; }
   if (mode === 'boot-create-2'){ titleEl.textContent = 'Confirm passcode'; subEl.textContent = 'Enter it again'; }
   if (mode === 'create-step1'){ titleEl.textContent = 'Set a passcode'; subEl.textContent = 'Choose a 4-digit code'; }
@@ -2062,7 +2161,7 @@ document.getElementById('lockCloseBtn').addEventListener('click', cancelLock);
 // when the lock UI is fully idle — never mid-setup, mid-confirm, or
 // immediately after a successful unlock (that's what caused the loop).
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && state.passcode && sessionKey && lockMode === 'idle'){
+  if (document.visibilityState === 'visible' && isAppLockEnabled() && sessionKey && lockMode === 'idle'){
     openLock('unlock');
   }
 });
@@ -2081,8 +2180,11 @@ async function evaluateLock(){
   if (lockMode === 'unlock' || lockMode === 'boot-unlock'){
     const ok = await attemptUnlock(lockInput);
     if (ok){
+      const wasBootUnlock = lockMode === 'boot-unlock';
       closeLock();
-      if (lockMode === 'boot-unlock'){
+      if (wasBootUnlock){
+        state.appLockEnabled = true;
+        localStorage.setItem(APP_LOCK_KEY, 'true');
         initAppAfterBoot();
       } else {
         // Resume-unlock: the "Log a spend" form's Category/Payment pickers and
@@ -2118,10 +2220,12 @@ async function evaluateLock(){
         window.__legacyPlainData = null;
       }
       state.passcode = lockInput;
+      state.appLockEnabled = true;
+      localStorage.setItem(APP_LOCK_KEY, 'true');
       closeLock();
-      saveState();
+      await saveState();
       initAppAfterBoot();
-      showToast('Passcode set — your data is now encrypted', false);
+      showToast('App Lock enabled — your data is now encrypted', false);
     } else {
       shakeLockError();
       setTimeout(() => openLock('boot-create-1'), 500);
@@ -2132,11 +2236,18 @@ async function evaluateLock(){
     openLock('create-step2');
   } else if (lockMode === 'create-step2'){
     if (lockInput === pendingNewPasscode){
+      const { key, saltB64 } = await deriveKeyFromPasscode(lockInput);
+      sessionKey = key;
+      sessionSalt = saltB64;
       state.passcode = lockInput;
-      saveState();
+      state.appLockEnabled = true;
+      localStorage.setItem(APP_LOCK_KEY, 'true');
+      await saveState();
       renderPasscodeSetting();
+      renderDecoySetting();
+      resetIdleTimer();
       closeLock();
-      showToast('Passcode set', false);
+      showToast('App Lock enabled', false);
     } else {
       shakeLockError();
       setTimeout(() => openLock('create-step1'), 500);
@@ -2151,7 +2262,10 @@ async function evaluateLock(){
       sessionKey = key;
       sessionSalt = saltB64;
       state.passcode = lockInput;
-      saveState();
+      state.appLockEnabled = true;
+      localStorage.setItem(APP_LOCK_KEY, 'true');
+      await saveState();
+      renderPasscodeSetting();
       closeLock();
       showToast('Passcode changed', false);
     } else {
@@ -2188,6 +2302,7 @@ function shakeLockError(){
 document.getElementById('lockConfirmBtn').addEventListener('click', evaluateLock);
 document.getElementById('biometricUnlockBtn').addEventListener('click', tryBiometricUnlock);
 document.getElementById('changePasscodeBtn').addEventListener('click', () => {
+  if (!isAppLockEnabled()) return;
   openLock('change-1');
 });
 
@@ -2405,7 +2520,7 @@ function checkBudgetThresholds(monthTotal, limit, now){
     if (ratio >= level && state.budgetAlertLevel < level){
       state.budgetAlertLevel = level;
       showToast(messages[level], false);
-      fireSystemNotification('Paisa Ledger', messages[level]);
+      fireSystemNotification('Ledvix', messages[level]);
       fired = true;
     }
   });
@@ -3760,6 +3875,8 @@ function saveProfile(){
 function wipeAllData(){
   if (!confirm('This permanently deletes everything on this device — expenses, categories, settings, everything. This cannot be undone. Continue?')) return;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(APP_LOCK_KEY);
+  localStorage.removeItem(DECOY_KEY);
   location.reload();
 }
 document.getElementById('profileToggle').addEventListener('click', openProfileOverlay);
@@ -4342,7 +4459,7 @@ function exportPdf(){
   const entryExpenseTotal = inRange.filter(isExpense).reduce((s,e)=>s+e.amount,0);
 
   document.getElementById('printReport').innerHTML = `
-    <h1>Paisa Ledger — Report</h1>
+    <h1>Ledvix — Report</h1>
     <div class="pr-sub">${rangeLabel}</div>
     <table class="pr-summary-table">
       <thead><tr><th>Total Spent</th><th>Total Income</th><th>Net Balance</th><th>Monthly Limit</th><th>${diff > 0 ? 'Over Budget' : 'Remaining'}</th></tr></thead>
@@ -4794,7 +4911,7 @@ function saveIouPayload(raw, source){
   ensureSharedIouState();
   const payload = normalizeIouPayload(raw);
   if (!payload){
-    showToast('Invalid Paisa Ledger IOU', false);
+    showToast('Invalid Ledvix IOU', false);
     return false;
   }
 
@@ -5070,7 +5187,7 @@ function importIouText(text,source){
 
   const payload=normalizeIouPayload(raw);
   if (!payload){
-    showToast('This QR is not a valid Paisa Ledger IOU', false);
+    showToast('This QR is not a valid Ledvix IOU', false);
     return false;
   }
 
@@ -5207,7 +5324,7 @@ function detectBankSmsPayment(text){
   if (/\bcash\b/.test(source)) return 'Cash';
   if (/\b(?:upi|vpa|gpay|google\s*pay|phonepe|paytm)\b/.test(source)) return 'UPI';
 
-  // The current Paisa Ledger payment list has Cash, UPI, Card and Other.
+  // The current Ledvix payment list has Cash, UPI, Card and Other.
   // Prefer a native Bank/Online option if a future/custom build has one;
   // otherwise map bank/account/card SMS to the existing Card option.
   if (/(?:\ba\/c\b|\baccount\b|\bbank\b|\bcard\b)/.test(source)){
@@ -5418,6 +5535,24 @@ function switchTab(tab){
 
   currentTab = target;
 
+  // Reset each tab's own scroll position when switching. This is a fallback for
+  // browsers/webviews which preserve scroll state across hidden flex children.
+  const homeScroll = document.getElementById('homeScroll');
+  const analysisScroll = document.getElementById('analysisScroll');
+  if (homeScroll){
+    homeScroll.style.display = target === 'home' ? 'block' : 'none';
+    if (target === 'home') homeScroll.scrollTo(0, 0);
+  }
+  if (analysisScroll){
+    analysisScroll.style.display = target === 'analysis' ? 'block' : 'none';
+    if (target === 'analysis') analysisScroll.scrollTo(0, 0);
+  }
+  if (target === 'profile' && profileOverlay){
+    const profileBody = profileOverlay.querySelector('.settings-overlay-body');
+    if (profileBody) profileBody.scrollTo(0, 0);
+  }
+
+  // Keep the inner views synchronized for compatibility with existing code.
   if (homeView) homeView.style.display = target === 'home' ? 'block' : 'none';
   if (analysisView) analysisView.style.display = target === 'analysis' ? 'block' : 'none';
   if (sharedIouCard) sharedIouCard.style.display = target === 'home' ? '' : 'none';
@@ -5652,27 +5787,41 @@ function initAppAfterBoot(){
 async function bootApp(){
   renderLockKeypad();
   const raw = localStorage.getItem(STORAGE_KEY);
+
   if (!raw){
-    openLock('boot-create-1'); // truly first launch — nothing saved yet
+    // Fresh install: App Lock is OFF by default and the dashboard opens directly.
+    state = JSON.parse(JSON.stringify(DEFAULT_STATE_TEMPLATE));
+    state.appLockEnabled = false;
+    state.passcode = null;
+    sessionKey = null;
+    sessionSalt = null;
+    localStorage.removeItem(APP_LOCK_KEY);
+    initAppAfterBoot();
     return;
   }
 
   let parsed = null;
-  try{ parsed = JSON.parse(raw); }catch(e){ /* corrupt — treat as no data */ }
+  try{ parsed = JSON.parse(raw); }catch(e){ parsed = null; }
   const looksEncrypted = !!(parsed && parsed.salt && parsed.iv && parsed.data);
 
   if (looksEncrypted){
+    // Preserve existing encrypted vaults from the previous mandatory-passcode version.
     window.__bootRawData = raw;
     openLock('boot-unlock');
-  } else {
-    // Data exists but predates encryption being added — it's plain JSON, not
-    // ciphertext, so no passcode could ever "unlock" it. Preserve it and run
-    // the passcode-setup flow instead; once set, it gets migrated in and
-    // encrypted for the first time, rather than being discarded.
-    window.__legacyPlainData = parsed;
-    openLock('boot-create-1');
+    return;
   }
+
+  // App Lock OFF storage is plain JSON and loads directly without a passcode.
+  state = parsed || JSON.parse(JSON.stringify(DEFAULT_STATE_TEMPLATE));
+  migrateState(state);
+  state.appLockEnabled = false;
+  state.passcode = null;
+  sessionKey = null;
+  sessionSalt = null;
+  localStorage.removeItem(APP_LOCK_KEY);
+  initAppAfterBoot();
 }
+
 bootApp();
 
 // ---- Feature 1: Ghost Mode (Hidden Balances) ----
@@ -5691,9 +5840,9 @@ applyGhostMode();
 let idleTimer = null;
 function resetIdleTimer(){
   clearTimeout(idleTimer);
-  if (!state.autoLockTime) return; // "Off" — no timer scheduled
+  if (!isAppLockEnabled() || !state.autoLockTime) return; // App Lock OFF means no security timer
   idleTimer = setTimeout(() => {
-    if (state.passcode && sessionKey) openLock('unlock'); // reuses the existing passcode lock screen
+    if (isAppLockEnabled() && sessionKey) openLock('unlock'); // reuses the existing passcode lock screen
   }, state.autoLockTime);
 }
 ['mousemove', 'keydown', 'click', 'touchstart'].forEach(evt => {
@@ -5708,6 +5857,10 @@ document.getElementById('autoLockSelect').addEventListener('change', e => {
 });
 
 document.getElementById('biometricToggle').addEventListener('click', async () => {
+  if (!isAppLockEnabled()){
+    showToast('Enable App Lock first', false);
+    return;
+  }
   if (!biometricSupported){
     showToast('Biometrics aren\'t available in this browser/device', false);
     return;
