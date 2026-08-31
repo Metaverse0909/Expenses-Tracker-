@@ -10,7 +10,9 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val webView = WebView(this)
+        setContentView(R.layout.activity_main)
+
+val webView = findViewById<WebView>(R.id.webView)
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -23,7 +25,6 @@ class MainActivity : Activity() {
             "https://raw.githubusercontent.com/Metaverse0909/Expenses-Tracker/main/Paisa-Ledger-Complete-Sensory-UX-Haptics.html"
         )
 
-        setContentView(webView)
     }
 
     override fun onBackPressed() {
