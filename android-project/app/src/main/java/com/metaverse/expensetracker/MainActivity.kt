@@ -5,10 +5,13 @@ import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -18,7 +21,10 @@ import androidx.core.app.NotificationManagerCompat
 class MainActivity : Activity() {
 
     private val splashDuration = 1500L
-    private val notificationChannelId = "ledvix_notifications"
+
+    // New channel ID so Android does not reuse the old silent channel
+    private val notificationChannelId = "ledvix_notifications_v2"
+
     private val notificationPermissionRequestCode = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,7 +65,16 @@ class MainActivity : Activity() {
     }
 
     private fun createNotificationChannel() {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            val soundUri: Uri =
+                Settings.System.DEFAULT_NOTIFICATION_URI
+
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
 
             val channel = NotificationChannel(
                 notificationChannelId,
@@ -67,7 +82,18 @@ class MainActivity : Activity() {
                 NotificationManager.IMPORTANCE_DEFAULT
             )
 
-            channel.description = "Ledvix expense and budget alerts"
+            channel.description =
+                "Ledvix expense and budget alerts"
+
+            channel.setSound(
+                soundUri,
+                audioAttributes
+            )
+
+            channel.enableVibration(true)
+
+            channel.vibrationPattern =
+                longArrayOf(0, 250, 100, 250)
 
             val notificationManager =
                 getSystemService(NotificationManager::class.java)
@@ -77,26 +103,34 @@ class MainActivity : Activity() {
     }
 
     private fun requestNotificationPermission() {
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
             if (
-                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED
+                checkSelfPermission(
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
             ) {
                 requestPermissions(
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    arrayOf(
+                        Manifest.permission.POST_NOTIFICATIONS
+                    ),
                     notificationPermissionRequestCode
                 )
             }
         }
     }
 
-    private fun showNotification(title: String, message: String) {
+    private fun showNotification(
+        title: String,
+        message: String
+    ) {
 
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
+            checkSelfPermission(
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             return
         }
@@ -110,6 +144,12 @@ class MainActivity : Activity() {
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
+            .setVibrate(
+                longArrayOf(0, 250, 100, 250)
+            )
+            .setSound(
+                Settings.System.DEFAULT_NOTIFICATION_URI
+            )
             .build()
 
         NotificationManagerCompat
@@ -123,9 +163,15 @@ class MainActivity : Activity() {
     private inner class LedvixNotificationBridge {
 
         @JavascriptInterface
-        fun showNotification(title: String, message: String) {
+        fun showNotification(
+            title: String,
+            message: String
+        ) {
             runOnUiThread {
-                this@MainActivity.showNotification(title, message)
+                this@MainActivity.showNotification(
+                    title,
+                    message
+                )
             }
         }
     }
@@ -134,7 +180,10 @@ class MainActivity : Activity() {
 
         val webView = findViewById<WebView>(R.id.webView)
 
-        if (webView != null && webView.canGoBack()) {
+        if (
+            webView != null &&
+            webView.canGoBack()
+        ) {
             webView.goBack()
         } else {
             super.onBackPressed()
