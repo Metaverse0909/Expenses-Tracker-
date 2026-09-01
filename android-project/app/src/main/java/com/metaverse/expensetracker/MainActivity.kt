@@ -12,7 +12,7 @@ class MainActivity : Activity() {
 
         setContentView(R.layout.activity_main)
 
-val webView = findViewById<WebView>(R.id.webView)
+        val webView = findViewById<WebView>(R.id.webView)
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -21,13 +21,6 @@ val webView = findViewById<WebView>(R.id.webView)
 
         webView.webViewClient = WebViewClient()
 
-        webView.loadUrl(
-            "https://raw.githubusercontent.com/Metaverse0909/Expenses-Tracker/main/Paisa-Ledger-Complete-Sensory-UX-Haptics.html"
-        )
-
-    }
-
-    override fun onBackPressed() {
-        super.onBackPressed()
+        webView.loadUrl("file:///android_asset/index.html")
     }
 }
