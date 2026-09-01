@@ -2496,10 +2496,20 @@ document.getElementById('repeatLastBtn').addEventListener('click', () => {
 const BUDGET_THRESHOLDS = [50, 75, 95, 100];
 function fireSystemNotification(title, body){
   try{
+    if (
+      window.LedvixAndroid &&
+      typeof window.LedvixAndroid.showNotification === 'function'
+    ){
+      window.LedvixAndroid.showNotification(title, body);
+      return;
+    }
+
     if ('Notification' in window && Notification.permission === 'granted'){
       new Notification(title, { body });
     }
-  }catch(e){ /* Notification API unsupported here — the in-app toast still covers it */ }
+  }catch(e){
+    console.log('Notification error:', e);
+  }
 }
 function checkBudgetThresholds(monthTotal, limit, now){
   if (!state.budgetAlertsEnabled || !limit) return;
