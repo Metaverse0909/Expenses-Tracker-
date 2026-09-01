@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.net.Uri
@@ -21,10 +23,7 @@ import androidx.core.app.NotificationManagerCompat
 class MainActivity : Activity() {
 
     private val splashDuration = 1500L
-
-    // New channel ID so Android does not reuse the old silent channel
-    private val notificationChannelId = "ledvix_notifications_v2"
-
+    private val notificationChannelId = "ledvix_alerts_v3"
     private val notificationPermissionRequestCode = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +64,6 @@ class MainActivity : Activity() {
     }
 
     private fun createNotificationChannel() {
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
             val soundUri: Uri =
@@ -73,13 +71,15 @@ class MainActivity : Activity() {
 
             val audioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setContentType(
+                    AudioAttributes.CONTENT_TYPE_SONIFICATION
+                )
                 .build()
 
             val channel = NotificationChannel(
                 notificationChannelId,
-                "Ledvix Notifications",
-                NotificationManager.IMPORTANCE_DEFAULT
+                "Ledvix Alerts",
+                NotificationManager.IMPORTANCE_HIGH
             )
 
             channel.description =
@@ -95,6 +95,8 @@ class MainActivity : Activity() {
             channel.vibrationPattern =
                 longArrayOf(0, 250, 100, 250)
 
+            channel.setShowBadge(true)
+
             val notificationManager =
                 getSystemService(NotificationManager::class.java)
 
@@ -103,7 +105,6 @@ class MainActivity : Activity() {
     }
 
     private fun requestNotificationPermission() {
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
             if (
@@ -135,6 +136,24 @@ class MainActivity : Activity() {
             return
         }
 
+        val openAppIntent = Intent(
+            this,
+            MainActivity::class.java
+        ).apply {
+            flags =
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(
             this,
             notificationChannelId
@@ -142,7 +161,8 @@ class MainActivity : Activity() {
             .setSmallIcon(R.drawable.ledvix_logo)
             .setContentTitle(title)
             .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setVibrate(
                 longArrayOf(0, 250, 100, 250)
